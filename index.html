@@ -147,10 +147,10 @@
         // --- Configuration and Constants ---
         const MAX_FARMERS = 10;
         const MAX_FARMER_LEVEL = 20;
-        const BASE_EARNING_PER_LEVEL = 5; // Base earning per farmer level per second
-        const FARMER_UPGRADE_BASE_COST = 25;
-        const NEW_FARMER_BASE_COST = 200;
-        const MACHINERY_UPGRADE_BASE_COST = 500;
+        const BASE_EARNING_PER_LEVEL = 5; 
+        const FARMER_UPGRADE_BASE_COST = 150; // Increased from 25
+        const NEW_FARMER_BASE_COST = 1000;    // Increased from 200
+        const MACHINERY_UPGRADE_BASE_COST = 2500; // Increased from 500
 
         const lang = {
             money: "ਪੈਸੇ",
@@ -176,13 +176,13 @@
         };
 
         const machineryLevels = [
-            { name: lang.hoe, multiplier: 1, cost: 0 }, // Level 0
-            { name: lang.betterHoe, multiplier: 1.5, cost: MACHINERY_UPGRADE_BASE_COST }, // Level 1
-            { name: lang.basicPlow, multiplier: 2.5, cost: MACHINERY_UPGRADE_BASE_COST * 3 }, // Level 2
-            { name: lang.improvedPlow, multiplier: 4, cost: MACHINERY_UPGRADE_BASE_COST * 8 }, // Level 3
-            { name: lang.seeder, multiplier: 7, cost: MACHINERY_UPGRADE_BASE_COST * 20 }, // Level 4
-            { name: lang.tractor, multiplier: 12, cost: MACHINERY_UPGRADE_BASE_COST * 50 }, // Level 5 - The "ton of money" tractor
-            { name: lang.advancedTractor, multiplier: 20, cost: MACHINERY_UPGRADE_BASE_COST * 150 } // Level 6
+            { name: lang.hoe, multiplier: 1, cost: 0 }, 
+            { name: lang.betterHoe, multiplier: 1.5, cost: MACHINERY_UPGRADE_BASE_COST }, 
+            { name: lang.basicPlow, multiplier: 2.5, cost: MACHINERY_UPGRADE_BASE_COST * 3 }, 
+            { name: lang.improvedPlow, multiplier: 4, cost: MACHINERY_UPGRADE_BASE_COST * 8 }, 
+            { name: lang.seeder, multiplier: 7, cost: MACHINERY_UPGRADE_BASE_COST * 20 }, 
+            { name: lang.tractor, multiplier: 12, cost: MACHINERY_UPGRADE_BASE_COST * 50 }, 
+            { name: lang.advancedTractor, multiplier: 20, cost: MACHINERY_UPGRADE_BASE_COST * 150 }
         ];
 
         // --- DOM Elements ---
@@ -203,19 +203,19 @@
 
 
         // --- Firebase Setup ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO_KEY", projectId: "DEMO_PROJECT" }; // Fallback for local dev
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'punjabi-farmer-sim-local';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO_KEY", projectId: "DEMO_PROJECT" }; 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'punjabi-farmer-sim-local-expensive'; // Changed ID slightly for new cost version
         
         let app;
         let auth;
         let db;
         let userId = null;
         let userDocRef = null;
-        let gameStateUnsubscribe = null; // To detach listener
+        let gameStateUnsubscribe = null; 
 
         // --- Game State ---
         let gameState = {
-            money: 100,
+            money: 250, // Slightly increased starting money
             farmers: [],
             machineryLevel: 0,
             lastUpdate: serverTimestamp()
@@ -227,7 +227,7 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                // firebase.firestore.setLogLevel('debug'); // Uncomment for Firestore logging
+                // firebase.firestore.setLogLevel('debug'); 
 
                 return new Promise((resolve) => {
                     onAuthStateChanged(auth, async (user) => {
@@ -248,7 +248,7 @@
                                 }
                             } catch (error) {
                                 console.error("Error during sign-in:", error);
-                                userId = `anon-${crypto.randomUUID()}`; // Fallback anonymous ID
+                                userId = `anon-${crypto.randomUUID()}`; 
                             }
                         }
                         userIdDisplayElement.textContent = userId || lang.loading;
@@ -260,7 +260,6 @@
             } catch (error) {
                 console.error("Firebase initialization error:", error);
                 showModalMessage(`Firebase Error: ${error.message}`);
-                // Fallback for local play without Firebase
                 userId = `local-${crypto.randomUUID()}`;
                 userIdDisplayElement.textContent = userId;
                 initGameWithoutFirebase();
@@ -270,22 +269,21 @@
 
         function initGameWithoutFirebase() {
             console.log("Initializing game without Firebase connection.");
-            if (gameState.farmers.length === 0) { // Only if not already loaded (e.g. from a failed Firebase attempt)
+            if (gameState.farmers.length === 0) { 
                 setupInitialFarmers();
             }
             updateUI();
-            setInterval(gameTick, 1000);
+            // Game tick interval is set in main() after firebase attempt
         }
         
         async function loadGame() {
             if (!userDocRef) {
                 console.warn("User doc ref not available for loading game.");
-                initGameWithoutFirebase(); // Fallback to local init
+                initGameWithoutFirebase(); 
                 return;
             }
             console.log("Attempting to load game from Firestore:", userDocRef.path);
             try {
-                // Detach any existing listener before attaching a new one
                 if (gameStateUnsubscribe) {
                     gameStateUnsubscribe();
                     console.log("Detached existing Firestore listener.");
@@ -295,11 +293,10 @@
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         console.log("Game data loaded from Firestore:", data);
-                        gameState.money = data.money !== undefined ? data.money : 100;
+                        gameState.money = data.money !== undefined ? data.money : 250; // Default to new starting money
                         gameState.farmers = data.farmers && Array.isArray(data.farmers) ? data.farmers : [];
                         gameState.machineryLevel = data.machineryLevel !== undefined ? data.machineryLevel : 0;
                         
-                        // Ensure farmers have correct structure if loaded from older save
                         gameState.farmers.forEach((farmer, index) => {
                             if (!farmer.id) farmer.id = `farmer-${index}-${Date.now()}`;
                             if (farmer.level === undefined) farmer.level = 1;
@@ -312,24 +309,24 @@
                     } else {
                         console.log("No saved game found. Initializing new game.");
                         setupInitialFarmers();
-                        saveGame(); // Save initial state
+                        saveGame(); 
                     }
                     updateUI();
                 }, (error) => {
                     console.error("Error listening to game state:", error);
                     showModalMessage(`Error loading game: ${error.message}. Playing locally.`);
-                    initGameWithoutFirebase(); // Fallback if snapshot fails
+                    initGameWithoutFirebase(); 
                 });
 
             } catch (error) {
                 console.error("Error loading game data:", error);
                 showModalMessage(`Error loading game: ${error.message}. Playing locally.`);
-                initGameWithoutFirebase(); // Fallback
+                initGameWithoutFirebase(); 
             }
         }
 
         async function saveGame() {
-            if (!userDocRef || !auth.currentUser) { // Ensure user is authenticated before saving
+            if (!userDocRef || !auth.currentUser) { 
                 console.warn("Cannot save game. User not authenticated or userDocRef not set.");
                 return;
             }
@@ -344,7 +341,7 @@
         }
 
         function setupInitialFarmers() {
-            gameState.farmers = []; // Clear existing before setup
+            gameState.farmers = []; 
             for (let i = 0; i < 3; i++) {
                 gameState.farmers.push({
                     id: `farmer-${i}-${Date.now()}`,
@@ -361,9 +358,8 @@
                 incomeThisTick += farmer.level * BASE_EARNING_PER_LEVEL * currentMachinery.multiplier;
             });
             gameState.money += incomeThisTick;
-            updateUI(); // Update money display and potentially other elements
-            // Autosave periodically (e.g., every 30 seconds)
-            if (gameTick.ticks % 30 === 0) {
+            updateUI(); 
+            if (gameTick.ticks % 30 === 0) { // Autosave every 30 ticks (30 seconds)
                 saveGame();
             }
             gameTick.ticks = (gameTick.ticks || 0) + 1;
@@ -391,7 +387,7 @@
         }
 
         function renderFarmers() {
-            farmersGrid.innerHTML = ''; // Clear existing farmer cards
+            farmersGrid.innerHTML = ''; 
             gameState.farmers.forEach((farmer, index) => {
                 const farmerCard = document.createElement('div');
                 farmerCard.className = 'farmer-card bg-green-100 p-4 rounded-lg shadow-sm flex flex-col justify-between';
@@ -436,8 +432,8 @@
                 nextMachineryNameDisplay.textContent = lang.maxMachineryReached;
                 upgradeMachineryCostDisplay.textContent = '-';
                 upgradeMachineryButton.disabled = true;
-                upgradeMachineryButton.classList.add('hidden'); // Hide button if maxed
-                nextMachineryNameDisplay.parentElement.classList.add('hidden'); // Hide text if maxed
+                upgradeMachineryButton.classList.add('hidden'); 
+                nextMachineryNameDisplay.parentElement.classList.add('hidden'); 
             }
         }
         
@@ -467,7 +463,7 @@
                 gameState.money -= cost;
                 farmer.level++;
                 console.log(`Farmer ${farmer.id} upgraded to level ${farmer.level}`);
-                saveGame(); // Save after significant change
+                saveGame(); 
                 updateUI();
             } else {
                 showModalMessage(lang.notEnoughMoney);
@@ -513,12 +509,13 @@
 
         // --- Calculation Functions ---
         function calculateFarmerUpgradeCost(currentLevel) {
-            return Math.floor(FARMER_UPGRADE_BASE_COST * Math.pow(1.6, currentLevel)); // Exponential cost
+            // Increased exponent for steeper cost curve
+            return Math.floor(FARMER_UPGRADE_BASE_COST * Math.pow(1.75, currentLevel)); 
         }
 
         function calculateNewFarmerCost() {
-            // Cost increases more significantly for later farmers
-            return Math.floor(NEW_FARMER_BASE_COST * Math.pow(2.2, gameState.farmers.length - 2 < 0 ? 0 : gameState.farmers.length - 2));
+            // Increased exponent for steeper cost curve
+            return Math.floor(NEW_FARMER_BASE_COST * Math.pow(2.5, gameState.farmers.length - 2 < 0 ? 0 : gameState.farmers.length - 2));
         }
         
         // --- Modal Functions ---
@@ -535,7 +532,7 @@
         buyFarmerButton.addEventListener('click', buyFarmer);
         upgradeMachineryButton.addEventListener('click', upgradeMachinery);
         modalCloseButton.addEventListener('click', closeModal);
-        window.addEventListener('click', (event) => { // Close modal if clicked outside
+        window.addEventListener('click', (event) => { 
             if (event.target == messageModal) {
                 closeModal();
             }
@@ -543,14 +540,14 @@
         
         // --- Start the Game ---
         async function main() {
-            await initializeFirebase(); // Initialize Firebase and authenticate
-            if (auth.currentUser && userDocRef) { // Check if Firebase init was successful
-                await loadGame(); // Load game data from Firestore
+            await initializeFirebase(); 
+            if (auth.currentUser && userDocRef) { 
+                await loadGame(); 
             } else {
                 console.warn("Firebase not fully initialized or user not authenticated. Running in local mode.");
-                initGameWithoutFirebase(); // Fallback if Firebase fails
+                initGameWithoutFirebase(); 
             }
-            setInterval(gameTick, 1000); // Start game loop for income regardless
+            setInterval(gameTick, 1000); 
         }
 
         main();
