@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ਮੇਰਾ ਖੇਤ - Punjabi Farmer Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Nirmala UI', 'Lohit Punjabi', 'Gurmukhi MT', 'Saab', sans-serif;
+            overscroll-behavior: none;
+        }
+        .farmer-card {
+            border: 1px solid #e2e8f0;
+            transition: box-shadow 0.3s ease;
+        }
+        .farmer-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+        .btn {
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn:active:not(:disabled) {
+            transform: scale(0.96);
+        }
+        .stat-value {
+            font-weight: bold;
+            color: #c2410c; /* Tailwind orange-700 */
+        }
+        .section-title {
+            font-size: 1.75rem; /* text-2xl */
+            font-weight: 700;
+            color: #276749; /* Tailwind green-800 */
+            border-bottom: 2px solid #68d391; /* Tailwind green-400 */
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        /* Custom modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-close-button {
+            background-color: #f44336;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .modal-close-button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body class="bg-green-50 text-gray-800 min-h-screen p-4 flex flex-col items-center">
+
+    <div class="w-full max-w-5xl bg-white p-6 rounded-xl shadow-2xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-5xl font-bold text-green-700">ਮੇਰਾ ਖੇਤ</h1>
+            <p class="text-xl text-green-600">ਤੁਹਾਡਾ ਆਪਣਾ ਪੰਜਾਬੀ ਕਿਸਾਨ ਸਿਮੂਲੇਟਰ</p>
+            <p class="text-sm text-gray-500 mt-1">User ID: <span id="userIdDisplay">Loading...</span></p>
+        </header>
+
+        <!-- Stats Section -->
+        <section id="statsSection" class="mb-8 p-6 bg-lime-100 rounded-lg shadow-md grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+                <p class="text-lg font-semibold text-lime-800">ਪੈਸੇ (Money):</p>
+                <p id="moneyDisplay" class="stat-value text-2xl">₹0</p>
+            </div>
+            <div>
+                <p class="text-lg font-semibold text-lime-800">ਕੁੱਲ ਕਿਸਾਨ (Farmers):</p>
+                <p id="totalFarmersDisplay" class="stat-value text-2xl">0</p>
+            </div>
+            <div>
+                <p class="text-lg font-semibold text-lime-800">ਆਮਦਨ/ਸਕਿੰਟ (Income/sec):</p>
+                <p id="incomePerSecondDisplay" class="stat-value text-2xl">₹0</p>
+            </div>
+            <div>
+                <p class="text-lg font-semibold text-lime-800">ਮੌਜੂਦਾ ਮਸ਼ੀਨਰੀ:</p>
+                <p id="currentMachineryDisplay" class="stat-value text-xl">...</p>
+            </div>
+        </section>
+
+        <!-- Farmers Section -->
+        <section id="farmersSection" class="mb-8">
+            <h2 class="section-title">ਤੁਹਾਡੇ ਕਿਸਾਨ (Your Farmers)</h2>
+            <div id="farmersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Farmer cards will be injected here by JavaScript -->
+            </div>
+            <div class="mt-6 text-center">
+                <button id="buyFarmerButton" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-md">
+                    ਨਵਾਂ ਕਿਸਾਨ ਖਰੀਦੋ (Buy Farmer) - ₹<span id="buyFarmerCost">0</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Machinery Section -->
+        <section id="machinerySection" class="mb-8">
+            <h2 class="section-title">ਮਸ਼ੀਨਰੀ ਅੱਪਗ੍ਰੇਡ (Machinery Upgrade)</h2>
+            <div class="bg-yellow-100 p-6 rounded-lg shadow-md text-center">
+                <p class="text-xl mb-2">ਅਗਲਾ ਅੱਪਗ੍ਰੇਡ: <span id="nextMachineryName" class="font-semibold text-yellow-700"></span></p>
+                <button id="upgradeMachineryButton" class="btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-md">
+                    ਮਸ਼ੀਨਰੀ ਅੱਪਗ੍ਰੇਡ ਕਰੋ - ₹<span id="upgradeMachineryCost">0</span>
+                </button>
+            </div>
+        </section>
+         <!-- Message Modal -->
+        <div id="messageModal" class="modal">
+            <div class="modal-content">
+                <p id="modalMessageText" class="text-lg"></p>
+                <button id="modalCloseButton" class="modal-close-button">ਠੀਕ ਹੈ (OK)</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuration and Constants ---
+        const MAX_FARMERS = 10;
+        const MAX_FARMER_LEVEL = 20;
+        const BASE_EARNING_PER_LEVEL = 5; // Base earning per farmer level per second
+        const FARMER_UPGRADE_BASE_COST = 25;
+        const NEW_FARMER_BASE_COST = 200;
+        const MACHINERY_UPGRADE_BASE_COST = 500;
+
+        const lang = {
+            money: "ਪੈਸੇ",
+            farmers: "ਕਿਸਾਨ",
+            level: "ਪੱਧਰ",
+            upgrade: "ਅੱਪਗ੍ਰੇਡ ਕਰੋ",
+            buyFarmer: "ਨਵਾਂ ਕਿਸਾਨ ਖਰੀਦੋ",
+            machinery: "ਮਸ਼ੀਨਰੀ",
+            hoe: "ਕਹੀ",
+            betterHoe: "ਚੰਗੀ ਕਹੀ",
+            basicPlow: "ਸਾਧਾਰਨ ਹਲ",
+            improvedPlow: "ਵਧੀਆ ਹਲ",
+            seeder: "ਬੀਜਣ ਵਾਲੀ ਮਸ਼ੀਨ",
+            tractor: "ਟਰੈਕਟਰ",
+            advancedTractor: "ਉੱਨਤ ਟਰੈਕਟਰ",
+            maxLevelReached: "ਵੱਧ ਤੋਂ ਵੱਧ ਪੱਧਰ",
+            notEnoughMoney: "ਲੋੜੀਂਦੇ ਪੈਸੇ ਨਹੀਂ ਹਨ।",
+            maxFarmersReached: "ਕਿਸਾਨਾਂ ਦੀ ਵੱਧ ਤੋਂ ਵੱਧ ਗਿਣਤੀ ਹੈ।",
+            maxMachineryReached: "ਮਸ਼ੀਨਰੀ ਦਾ ਵੱਧ ਤੋਂ ਵੱਧ ਪੱਧਰ ਹੈ।",
+            userIdDisplay: "User ID:",
+            loading: "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...",
+            ok: "ਠੀਕ ਹੈ"
+        };
+
+        const machineryLevels = [
+            { name: lang.hoe, multiplier: 1, cost: 0 }, // Level 0
+            { name: lang.betterHoe, multiplier: 1.5, cost: MACHINERY_UPGRADE_BASE_COST }, // Level 1
+            { name: lang.basicPlow, multiplier: 2.5, cost: MACHINERY_UPGRADE_BASE_COST * 3 }, // Level 2
+            { name: lang.improvedPlow, multiplier: 4, cost: MACHINERY_UPGRADE_BASE_COST * 8 }, // Level 3
+            { name: lang.seeder, multiplier: 7, cost: MACHINERY_UPGRADE_BASE_COST * 20 }, // Level 4
+            { name: lang.tractor, multiplier: 12, cost: MACHINERY_UPGRADE_BASE_COST * 50 }, // Level 5 - The "ton of money" tractor
+            { name: lang.advancedTractor, multiplier: 20, cost: MACHINERY_UPGRADE_BASE_COST * 150 } // Level 6
+        ];
+
+        // --- DOM Elements ---
+        const moneyDisplay = document.getElementById('moneyDisplay');
+        const totalFarmersDisplay = document.getElementById('totalFarmersDisplay');
+        const incomePerSecondDisplay = document.getElementById('incomePerSecondDisplay');
+        const currentMachineryDisplay = document.getElementById('currentMachineryDisplay');
+        const farmersGrid = document.getElementById('farmersGrid');
+        const buyFarmerButton = document.getElementById('buyFarmerButton');
+        const buyFarmerCostDisplay = document.getElementById('buyFarmerCost');
+        const upgradeMachineryButton = document.getElementById('upgradeMachineryButton');
+        const upgradeMachineryCostDisplay = document.getElementById('upgradeMachineryCost');
+        const nextMachineryNameDisplay = document.getElementById('nextMachineryName');
+        const userIdDisplayElement = document.getElementById('userIdDisplay');
+        const messageModal = document.getElementById('messageModal');
+        const modalMessageText = document.getElementById('modalMessageText');
+        const modalCloseButton = document.getElementById('modalCloseButton');
+
+
+        // --- Firebase Setup ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO_KEY", projectId: "DEMO_PROJECT" }; // Fallback for local dev
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'punjabi-farmer-sim-local';
+        
+        let app;
+        let auth;
+        let db;
+        let userId = null;
+        let userDocRef = null;
+        let gameStateUnsubscribe = null; // To detach listener
+
+        // --- Game State ---
+        let gameState = {
+            money: 100,
+            farmers: [],
+            machineryLevel: 0,
+            lastUpdate: serverTimestamp()
+        };
+
+        // --- Initialization ---
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                // firebase.firestore.setLogLevel('debug'); // Uncomment for Firestore logging
+
+                return new Promise((resolve) => {
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            console.log("User signed in with UID:", userId);
+                        } else {
+                            console.log("User not signed in, attempting custom/anonymous sign in.");
+                            try {
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                    await signInWithCustomToken(auth, __initial_auth_token);
+                                    userId = auth.currentUser?.uid;
+                                    console.log("Signed in with custom token. UID:", userId);
+                                } else {
+                                    await signInAnonymously(auth);
+                                    userId = auth.currentUser?.uid;
+                                    console.log("Signed in anonymously. UID:", userId);
+                                }
+                            } catch (error) {
+                                console.error("Error during sign-in:", error);
+                                userId = `anon-${crypto.randomUUID()}`; // Fallback anonymous ID
+                            }
+                        }
+                        userIdDisplayElement.textContent = userId || lang.loading;
+                        userDocRef = doc(db, "artifacts", appId, "users", userId, "punjabiFarmerSim", "gameState");
+                        resolve();
+                    });
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+                showModalMessage(`Firebase Error: ${error.message}`);
+                // Fallback for local play without Firebase
+                userId = `local-${crypto.randomUUID()}`;
+                userIdDisplayElement.textContent = userId;
+                initGameWithoutFirebase();
+            }
+        }
+
+
+        function initGameWithoutFirebase() {
+            console.log("Initializing game without Firebase connection.");
+            if (gameState.farmers.length === 0) { // Only if not already loaded (e.g. from a failed Firebase attempt)
+                setupInitialFarmers();
+            }
+            updateUI();
+            setInterval(gameTick, 1000);
+        }
+        
+        async function loadGame() {
+            if (!userDocRef) {
+                console.warn("User doc ref not available for loading game.");
+                initGameWithoutFirebase(); // Fallback to local init
+                return;
+            }
+            console.log("Attempting to load game from Firestore:", userDocRef.path);
+            try {
+                // Detach any existing listener before attaching a new one
+                if (gameStateUnsubscribe) {
+                    gameStateUnsubscribe();
+                    console.log("Detached existing Firestore listener.");
+                }
+
+                gameStateUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        console.log("Game data loaded from Firestore:", data);
+                        gameState.money = data.money !== undefined ? data.money : 100;
+                        gameState.farmers = data.farmers && Array.isArray(data.farmers) ? data.farmers : [];
+                        gameState.machineryLevel = data.machineryLevel !== undefined ? data.machineryLevel : 0;
+                        
+                        // Ensure farmers have correct structure if loaded from older save
+                        gameState.farmers.forEach((farmer, index) => {
+                            if (!farmer.id) farmer.id = `farmer-${index}-${Date.now()}`;
+                            if (farmer.level === undefined) farmer.level = 1;
+                        });
+
+                        if (gameState.farmers.length === 0) {
+                            setupInitialFarmers();
+                        }
+                        console.log("Game state after loading/init:", JSON.parse(JSON.stringify(gameState)));
+                    } else {
+                        console.log("No saved game found. Initializing new game.");
+                        setupInitialFarmers();
+                        saveGame(); // Save initial state
+                    }
+                    updateUI();
+                }, (error) => {
+                    console.error("Error listening to game state:", error);
+                    showModalMessage(`Error loading game: ${error.message}. Playing locally.`);
+                    initGameWithoutFirebase(); // Fallback if snapshot fails
+                });
+
+            } catch (error) {
+                console.error("Error loading game data:", error);
+                showModalMessage(`Error loading game: ${error.message}. Playing locally.`);
+                initGameWithoutFirebase(); // Fallback
+            }
+        }
+
+        async function saveGame() {
+            if (!userDocRef || !auth.currentUser) { // Ensure user is authenticated before saving
+                console.warn("Cannot save game. User not authenticated or userDocRef not set.");
+                return;
+            }
+            try {
+                gameState.lastUpdate = serverTimestamp();
+                await setDoc(userDocRef, gameState, { merge: true });
+                console.log("Game saved to Firestore:", JSON.parse(JSON.stringify(gameState)));
+            } catch (error) {
+                console.error("Error saving game:", error);
+                showModalMessage(`Error saving game: ${error.message}`);
+            }
+        }
+
+        function setupInitialFarmers() {
+            gameState.farmers = []; // Clear existing before setup
+            for (let i = 0; i < 3; i++) {
+                gameState.farmers.push({
+                    id: `farmer-${i}-${Date.now()}`,
+                    level: 1
+                });
+            }
+        }
+
+        // --- Game Loop ---
+        function gameTick() {
+            let incomeThisTick = 0;
+            const currentMachinery = machineryLevels[gameState.machineryLevel];
+            gameState.farmers.forEach(farmer => {
+                incomeThisTick += farmer.level * BASE_EARNING_PER_LEVEL * currentMachinery.multiplier;
+            });
+            gameState.money += incomeThisTick;
+            updateUI(); // Update money display and potentially other elements
+            // Autosave periodically (e.g., every 30 seconds)
+            if (gameTick.ticks % 30 === 0) {
+                saveGame();
+            }
+            gameTick.ticks = (gameTick.ticks || 0) + 1;
+        }
+        gameTick.ticks = 0;
+
+
+        // --- UI Update Functions ---
+        function updateUI() {
+            moneyDisplay.textContent = `₹${Math.floor(gameState.money).toLocaleString()}`;
+            totalFarmersDisplay.textContent = `${gameState.farmers.length}/${MAX_FARMERS}`;
+            
+            const currentMachinery = machineryLevels[gameState.machineryLevel];
+            currentMachineryDisplay.textContent = currentMachinery.name;
+
+            let totalIncomePerSecond = 0;
+             gameState.farmers.forEach(farmer => {
+                totalIncomePerSecond += farmer.level * BASE_EARNING_PER_LEVEL * currentMachinery.multiplier;
+            });
+            incomePerSecondDisplay.textContent = `₹${totalIncomePerSecond.toLocaleString()}/sec`;
+
+            renderFarmers();
+            renderMachineryUpgrade();
+            renderBuyFarmerButton();
+        }
+
+        function renderFarmers() {
+            farmersGrid.innerHTML = ''; // Clear existing farmer cards
+            gameState.farmers.forEach((farmer, index) => {
+                const farmerCard = document.createElement('div');
+                farmerCard.className = 'farmer-card bg-green-100 p-4 rounded-lg shadow-sm flex flex-col justify-between';
+                
+                const farmerIncome = farmer.level * BASE_EARNING_PER_LEVEL * machineryLevels[gameState.machineryLevel].multiplier;
+                const upgradeCost = calculateFarmerUpgradeCost(farmer.level);
+
+                farmerCard.innerHTML = `
+                    <div>
+                        <h3 class="text-xl font-semibold text-green-700">ਕਿਸਾਨ ${index + 1}</h3>
+                        <p class="text-md">ਪੱਧਰ (Level): <span class="font-bold">${farmer.level}</span>/${MAX_FARMER_LEVEL}</p>
+                        <p class="text-sm text-green-600">ਆਮਦਨ: ₹${farmerIncome.toLocaleString()}/sec</p>
+                    </div>
+                    <button data-farmer-id="${farmer.id}" 
+                            class="btn upgrade-farmer-btn mt-3 w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-md text-sm"
+                            ${farmer.level >= MAX_FARMER_LEVEL ? 'disabled' : ''}>
+                        ${farmer.level >= MAX_FARMER_LEVEL ? lang.maxLevelReached : `${lang.upgrade} - ₹${upgradeCost.toLocaleString()}`}
+                    </button>
+                `;
+                farmersGrid.appendChild(farmerCard);
+            });
+
+            document.querySelectorAll('.upgrade-farmer-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const farmerId = e.target.dataset.farmerId;
+                    upgradeFarmer(farmerId);
+                });
+            });
+        }
+
+        function renderMachineryUpgrade() {
+            const currentLevel = gameState.machineryLevel;
+            if (currentLevel < machineryLevels.length - 1) {
+                const nextMachinery = machineryLevels[currentLevel + 1];
+                nextMachineryNameDisplay.textContent = nextMachinery.name;
+                upgradeMachineryCostDisplay.textContent = nextMachinery.cost.toLocaleString();
+                upgradeMachineryButton.disabled = gameState.money < nextMachinery.cost;
+                upgradeMachineryButton.classList.remove('hidden');
+                 nextMachineryNameDisplay.parentElement.classList.remove('hidden');
+
+            } else {
+                nextMachineryNameDisplay.textContent = lang.maxMachineryReached;
+                upgradeMachineryCostDisplay.textContent = '-';
+                upgradeMachineryButton.disabled = true;
+                upgradeMachineryButton.classList.add('hidden'); // Hide button if maxed
+                nextMachineryNameDisplay.parentElement.classList.add('hidden'); // Hide text if maxed
+            }
+        }
+        
+        function renderBuyFarmerButton() {
+            if (gameState.farmers.length < MAX_FARMERS) {
+                const cost = calculateNewFarmerCost();
+                buyFarmerCostDisplay.textContent = cost.toLocaleString();
+                buyFarmerButton.disabled = gameState.money < cost;
+                buyFarmerButton.classList.remove('hidden');
+            } else {
+                buyFarmerButton.classList.add('hidden');
+            }
+        }
+
+        // --- Action Functions ---
+        function upgradeFarmer(farmerId) {
+            const farmer = gameState.farmers.find(f => f.id === farmerId);
+            if (!farmer) return;
+
+            if (farmer.level >= MAX_FARMER_LEVEL) {
+                showModalMessage(lang.maxLevelReached);
+                return;
+            }
+
+            const cost = calculateFarmerUpgradeCost(farmer.level);
+            if (gameState.money >= cost) {
+                gameState.money -= cost;
+                farmer.level++;
+                console.log(`Farmer ${farmer.id} upgraded to level ${farmer.level}`);
+                saveGame(); // Save after significant change
+                updateUI();
+            } else {
+                showModalMessage(lang.notEnoughMoney);
+            }
+        }
+
+        function buyFarmer() {
+            if (gameState.farmers.length >= MAX_FARMERS) {
+                showModalMessage(lang.maxFarmersReached);
+                return;
+            }
+            const cost = calculateNewFarmerCost();
+            if (gameState.money >= cost) {
+                gameState.money -= cost;
+                gameState.farmers.push({
+                    id: `farmer-${gameState.farmers.length}-${Date.now()}`,
+                    level: 1
+                });
+                console.log("New farmer bought. Total farmers:", gameState.farmers.length);
+                saveGame();
+                updateUI();
+            } else {
+                showModalMessage(lang.notEnoughMoney);
+            }
+        }
+
+        function upgradeMachinery() {
+            if (gameState.machineryLevel >= machineryLevels.length - 1) {
+                showModalMessage(lang.maxMachineryReached);
+                return;
+            }
+            const nextMachinery = machineryLevels[gameState.machineryLevel + 1];
+            if (gameState.money >= nextMachinery.cost) {
+                gameState.money -= nextMachinery.cost;
+                gameState.machineryLevel++;
+                console.log("Machinery upgraded to level", gameState.machineryLevel, ":", machineryLevels[gameState.machineryLevel].name);
+                saveGame();
+                updateUI();
+            } else {
+                showModalMessage(lang.notEnoughMoney);
+            }
+        }
+
+        // --- Calculation Functions ---
+        function calculateFarmerUpgradeCost(currentLevel) {
+            return Math.floor(FARMER_UPGRADE_BASE_COST * Math.pow(1.6, currentLevel)); // Exponential cost
+        }
+
+        function calculateNewFarmerCost() {
+            // Cost increases more significantly for later farmers
+            return Math.floor(NEW_FARMER_BASE_COST * Math.pow(2.2, gameState.farmers.length - 2 < 0 ? 0 : gameState.farmers.length - 2));
+        }
+        
+        // --- Modal Functions ---
+        function showModalMessage(message) {
+            modalMessageText.textContent = message;
+            messageModal.style.display = "flex";
+        }
+
+        function closeModal() {
+            messageModal.style.display = "none";
+        }
+
+        // --- Event Listeners ---
+        buyFarmerButton.addEventListener('click', buyFarmer);
+        upgradeMachineryButton.addEventListener('click', upgradeMachinery);
+        modalCloseButton.addEventListener('click', closeModal);
+        window.addEventListener('click', (event) => { // Close modal if clicked outside
+            if (event.target == messageModal) {
+                closeModal();
+            }
+        });
+        
+        // --- Start the Game ---
+        async function main() {
+            await initializeFirebase(); // Initialize Firebase and authenticate
+            if (auth.currentUser && userDocRef) { // Check if Firebase init was successful
+                await loadGame(); // Load game data from Firestore
+            } else {
+                console.warn("Firebase not fully initialized or user not authenticated. Running in local mode.");
+                initGameWithoutFirebase(); // Fallback if Firebase fails
+            }
+            setInterval(gameTick, 1000); // Start game loop for income regardless
+        }
+
+        main();
+
+    </script>
+</body>
+</html>
